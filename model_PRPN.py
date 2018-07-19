@@ -1,19 +1,20 @@
 import torch
 import torch.nn as nn
 
-from ParsingNetwork import ParsingNetwork
-from PredictNetwork import PredictNetwork
-from ReadingNetwork import ReadingNetwork
+from .ParsingNetwork import ParsingNetwork
+from .PredictNetwork import PredictNetwork
+from .ReadingNetwork import ReadingNetwork
 
+from ..lm import LM
 
-class PRPN(nn.Module):
+class Prpn(LM):
     """Container module with an encoder, a recurrent module, and a decoder."""
 
     def __init__(self, ntoken, ninp, nhid, nlayers,
                  nslots=5, nlookback=1, resolution=0.1,
                  dropout=0.4, idropout=0.4, rdropout=0.1,
                  tie_weights=False, hard=False, res=1):
-        super(PRPN, self).__init__()
+        super(Prpn, self).__init__()
 
         self.nhid = nhid
         self.ninp = ninp
@@ -26,7 +27,7 @@ class PRPN(nn.Module):
         self.rdrop = nn.Dropout(rdropout)
 
         # Feedforward layers
-        self.encoder = nn.Embedding(ntoken, ninp)
+        self.lut= nn.Embedding(ntoken, ninp)
         self.parser = ParsingNetwork(ninp, nhid, nslots, nlookback, resolution, idropout, hard)
         self.reader = nn.ModuleList([ReadingNetwork(ninp, nhid, nslots, dropout=dropout, idropout=idropout), ] +
                                     [ReadingNetwork(nhid, nhid, nslots, dropout=idropout, idropout=idropout)
@@ -35,7 +36,7 @@ class PRPN(nn.Module):
         self.decoder = nn.Linear(ninp, ntoken)
 
         if tie_weights:
-            self.decoder.weight = self.encoder.weight
+            self.decoder.weight = self.lut.weight
 
         self.attentions = None
         self.gates = None
@@ -44,7 +45,7 @@ class PRPN(nn.Module):
 
     def init_weights(self):
         initrange = 0.01
-        self.encoder.weight.data.uniform_(-initrange, initrange)
+        self.lut.weight.data.uniform_(-initrange, initrange)
         self.decoder.bias.data.fill_(0)
         self.decoder.weight.data.uniform_(-initrange, initrange)
 
@@ -55,7 +56,7 @@ class PRPN(nn.Module):
     def forward(self, input, hidden_states):
         ntimestep = input.size(0)
         bsz = input.size(1)
-        emb = self.encoder(input)  # timesteps, bsz, ninp
+        emb = self.lut(input)  # timesteps, bsz, ninp
         output_h = []
         output_memory = []
         attentions = []
@@ -110,3 +111,9 @@ class PRPN(nn.Module):
                 for i in range(self.nlayers)], \
                self.parser.init_hidden(bsz), \
                self.predictor.init_hidden(bsz)
+
+    def rnn_parameters(self):
+        for model in self.reader:
+            for p in model.memory_rnn.parameters():
+                yield p
+

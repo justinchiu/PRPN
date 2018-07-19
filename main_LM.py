@@ -9,8 +9,8 @@ import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
 from torch.autograd import Variable
 
-import data
-from model_PRPN import PRPN
+from .data import Corpus
+from .model_PRPN import Prpn
 
 parser = argparse.ArgumentParser(description='PennTreeBank PRPN Language Model')
 parser.add_argument('--data', type=str, default='./data/penn',
@@ -51,7 +51,8 @@ parser.add_argument('--cuda', action='store_true',
                     help='use CUDA')
 parser.add_argument('--log-interval', type=int, default=100, metavar='N',
                     help='report interval')
-parser.add_argument('--save', type=str, default='./model/model_LM.pt',
+#parser.add_argument('--save', type=str, default='./model/model_LM.pt',
+parser.add_argument('--save', type=str, default='model_LM.pt',
                     help='path to save the final model')
 parser.add_argument('--load', type=str, default=None,
                     help='path to save the final model')
@@ -79,7 +80,7 @@ if torch.cuda.is_available():
 # Load data
 ###############################################################################
 
-corpus = data.Corpus(args.data)
+corpus = Corpus(args.data)
 
 
 def batchify(data, bsz, random_start_idx=False):
@@ -107,11 +108,11 @@ test_data = batchify(corpus.test, eval_batch_size)
 ###############################################################################
 
 ntokens = len(corpus.dictionary)
-model = PRPN(ntokens, args.emsize, args.nhid, args.nlayers,
+model = Prpn(ntokens, args.emsize, args.nhid, args.nlayers,
              args.nslots, args.nlookback, args.resolution,
              args.dropout, args.idropout, args.rdropout,
              args.tied, args.hard, args.res)
-
+print(model)
 if not (args.load is None):
     with open(args.load, 'rb') as f:
         model = torch.load(f)
@@ -128,8 +129,8 @@ criterion = nn.CrossEntropyLoss()
 
 def repackage_hidden(h):
     """Wraps hidden states in new Variables, to detach them from their history."""
-    if type(h) == Variable:
-        return Variable(h.data)
+    if type(h) == torch.Tensor:
+        return h.detach()
     else:
         if isinstance(h, list):
             return [repackage_hidden(v) for v in h]
@@ -166,7 +167,8 @@ def train():
     start_time = time.time()
     ntokens = len(corpus.dictionary)
     hidden = model.init_hidden(args.batch_size)
-    train_data = batchify(corpus.train, args.batch_size, random_start_idx=True)
+    #train_data = batchify(corpus.train, args.batch_size, random_start_idx=True)
+    train_data = batchify(corpus.train, args.batch_size, random_start_idx=False)
     for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
         data, targets = get_batch(train_data, i)
         # Starting each batch, we detach the hidden state from how it was previously produced.

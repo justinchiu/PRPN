@@ -4,8 +4,8 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 
-from LSTMCell import LSTMCell
-from blocks import softmax
+from .LSTMCell import LSTMCell
+from .blocks import softmax
 
 
 class ReadingNetwork(nn.Module):
