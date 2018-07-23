@@ -167,8 +167,8 @@ def train():
     start_time = time.time()
     ntokens = len(corpus.dictionary)
     hidden = model.init_hidden(args.batch_size)
-    #train_data = batchify(corpus.train, args.batch_size, random_start_idx=True)
-    train_data = batchify(corpus.train, args.batch_size, random_start_idx=False)
+    train_data = batchify(corpus.train, args.batch_size, random_start_idx=True)
+    #train_data = batchify(corpus.train, args.batch_size, random_start_idx=False)
     for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
         data, targets = get_batch(train_data, i)
         # Starting each batch, we detach the hidden state from how it was previously produced.
